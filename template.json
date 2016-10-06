@@ -1,0 +1,2111 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudFormation template for a generic VPC with public and private subnets (with private network Internet access via NAT)",
+  "Parameters": {
+    "NatKeyPairName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the NAT instances",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    },
+    "PrivateInstanceOS": {
+      "Type": "String",
+      "Default": "privateAmazon",
+      "AllowedValues": [
+        "privateAmazon",
+        "privateCentos",
+        "privateUbuntu"
+      ],
+      "Description": "Enter OS type [amazon, centos or ubuntu]"
+    },
+    "PrivEBSsize": {
+      "Default": "8",
+      "Description": "The size of the database (GB)",
+      "Type": "Number",
+      "MinValue": "8",
+      "MaxValue": "1024",
+      "ConstraintDescription": "must be between 8 and 1024Gb."
+    },
+    "PublicInstanceOS": {
+      "Type": "String",
+      "Default": "publicAmazon",
+      "AllowedValues": [
+        "publicAmazon",
+        "publicCentos",
+        "publicUbuntu"
+      ],
+      "Description": "Enter OS type [amazon, centos or ubuntu]"
+    },
+    "PubEBSsize": {
+      "Default": "8",
+      "Description": "The size of the database (GB)",
+      "Type": "Number",
+      "MinValue": "8",
+      "MaxValue": "1024",
+      "ConstraintDescription": "must be between 8 and 1024Gb."
+    },
+    "PublicInstanceType": {
+      "Description": " Public Instance EC2 instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "t1.micro",
+        "t2.nano",
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "g2.2xlarge",
+        "g2.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge",
+        "d2.xlarge",
+        "d2.2xlarge",
+        "d2.4xlarge",
+        "d2.8xlarge",
+        "hi1.4xlarge",
+        "hs1.8xlarge",
+        "cr1.8xlarge",
+        "cc2.8xlarge",
+        "cg1.4xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "PublicKeyPairName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the Private instances",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    },
+    "PrivateInstanceType": {
+      "Description": " Private Instance EC2 instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "t1.micro",
+        "t2.nano",
+        "t2.micro",
+        "t2.small",
+        "t2.medium",
+        "t2.large",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "m4.large",
+        "m4.xlarge",
+        "m4.2xlarge",
+        "m4.4xlarge",
+        "m4.10xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "c4.large",
+        "c4.xlarge",
+        "c4.2xlarge",
+        "c4.4xlarge",
+        "c4.8xlarge",
+        "g2.2xlarge",
+        "g2.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge",
+        "d2.xlarge",
+        "d2.2xlarge",
+        "d2.4xlarge",
+        "d2.8xlarge",
+        "hi1.4xlarge",
+        "hs1.8xlarge",
+        "cr1.8xlarge",
+        "cc2.8xlarge",
+        "cg1.4xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
+    "PrivateKeyPairName": {
+      "Description": "Name of an existing EC2 KeyPair to enable SSH access to the Private instances",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+    }
+  },
+  "Mappings": {
+    "SubnetConfig": {
+      "VPC": {
+        "CIDR": "10.44.0.0/16"
+      },
+      "Public": {
+        "CIDR": "10.44.0.0/24"
+      },
+      "Private": {
+        "CIDR": "10.44.1.0/24"
+      }
+    },
+    "NatRegionMap": {
+      "us-east-1": {
+        "AMI": "ami-184dc970"
+      },
+      "us-west-1": {
+        "AMI": "ami-004b0f60"
+      },
+      "us-west-2": {
+        "AMI": "ami-290f4119"
+      },
+      "eu-west-1": {
+        "AMI": "ami-14913f63"
+      },
+      "eu-central-1": {
+        "AMI": "ami-ae380eb3"
+      },
+      "sa-east-1": {
+        "AMI": "ami-8122969c"
+      },
+      "ap-southeast-1": {
+        "AMI": "ami-6aa38238"
+      },
+      "ap-southeast-2": {
+        "AMI": "ami-893f53b3"
+      },
+      "ap-northeast-1": {
+        "AMI": "ami-27d6e626"
+      },
+      "ap-northeast-2": {
+        "AMI": ""
+      },
+      "ap-south-1": {
+        "AMI": ""
+      }
+    },
+    "PublicRegionMap": {
+      "ap-southeast-1": {
+        "publicAmazon": "ami-a2c111c1",
+        "publicUbuntu": "ami-25c00c46",
+        "publicCentos": "ami-f068a193"
+      },
+      "ap-southeast-2": {
+        "publicAmazon": "ami-d9d7f9ba",
+        "publicUbuntu": "ami-6c14310f",
+        "publicCentos": "ami-fedafc9d"
+      },
+      "us-east-1": {
+        "publicAmazon": "ami-a4827dc9",
+        "publicUbuntu": "ami-fce3c696",
+        "publicCentos": "ami-6d1c2007"
+      },
+      "us-west-1": {
+        "publicAmazon": "ami-11790371",
+        "publicUbuntu": "ami-48db9d28",
+        "publicCentos": "ami-af4333cf"
+      },
+      "us-west-2": {
+        "publicAmazon": "ami-f303fb93",
+        "publicUbuntu": "ami-9abea4fb",
+        "publicCentos": "ami-d2c924b2"
+      },
+      "eu-west-1": {
+        "publicAmazon": "ami-c39604b0",
+        "publicUbuntu": "ami-f95ef58a",
+        "publicCentos": "ami-7abd0209"
+      },
+      "eu-central-1": {
+        "publicAmazon": "ami-7df01e12",
+        "publicUbuntu": "ami-87564feb",
+        "publicCentos": "ami-9bf712f4"
+      },
+      "ap-northeast-1": {
+        "publicAmazon": "ami-6154bb00",
+        "publicUbuntu": "ami-a21529cc",
+        "publicCentos": "ami-eec1c380"
+      },
+      "ap-northeast-2": {
+        "publicAmazon": "ami-69e92207",
+        "publicUbuntu": "ami-09dc1267",
+        "publicCentos": "ami-c74789a9"
+      },
+      "sa-east-1": {
+        "publicAmazon": "ami-106ee57c",
+        "publicUbuntu": "ami-27b3094b",
+        "publicCentos": "ami-26b93b4a"
+      },
+      "ap-south-1": {
+        "publicAmazon": "",
+        "publicUbuntu": "",
+        "publicCentos": ""
+      }
+    },
+    "PrivateRegionMap": {
+      "ap-southeast-1": {
+        "privateAmazon": "ami-a2c111c1",
+        "privateUbuntu": "ami-25c00c46",
+        "privateCentos": "ami-f068a193"
+      },
+      "ap-southeast-2": {
+        "privateAmazon": "ami-d9d7f9ba",
+        "privateUbuntu": "ami-6c14310f",
+        "privateCentos": "ami-fedafc9d"
+      },
+      "us-east-1": {
+        "privateAmazon": "ami-a4827dc9",
+        "privateUbuntu": "ami-fce3c696",
+        "privateCentos": "ami-6d1c2007"
+      },
+      "us-west-1": {
+        "privateAmazon": "ami-11790371",
+        "privateUbuntu": "ami-06116566",
+        "privateCentos": "ami-af4333cf"
+      },
+      "us-west-2": {
+        "privateAmazon": "ami-f303fb93",
+        "privateUbuntu": "ami-9abea4fb",
+        "privateCentos": "ami-d2c924b2"
+      },
+      "eu-west-1": {
+        "privateAmazon": "ami-c39604b0",
+        "privateUbuntu": "ami-f95ef58a",
+        "privateCentos": "ami-7abd0209"
+      },
+      "eu-central-1": {
+        "privateAmazon": "ami-7df01e12",
+        "privateUbuntu": "ami-87564feb",
+        "privateCentos": "ami-9bf712f4"
+      },
+      "ap-northeast-1": {
+        "privateAmazon": "ami-6154bb00",
+        "privateUbuntu": "ami-a21529cc",
+        "privateCentos": "ami-eec1c380"
+      },
+      "ap-northeast-2": {
+        "privateAmazon": "ami-69e92207",
+        "privateUbuntu": "ami-09dc1267",
+        "privateCentos": "ami-c74789a9"
+      },
+      "sa-east-1": {
+        "privateAmazon": "ami-106ee57c",
+        "privateUbuntu": "ami-27b3094b",
+        "privateCentos": "ami-26b93b4a"
+      },
+      "ap-south-1": {
+        "privateAmazon": "",
+        "privateUbuntu": "",
+        "privateCentos": ""
+      }
+    }
+  },
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "SubnetConfig",
+            "VPC",
+            "CIDR"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          },
+          {
+            "Key": "Name",
+            "Value": "NAT VPC"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        }
+      }
+    },
+    "PublicSubnet": {
+      "DependsOn": [
+        "VPC"
+      ],
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "SubnetConfig",
+            "Public",
+            "CIDR"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          },
+          {
+            "Key": "Name",
+            "Value": "Public Subnet"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "faaea7f4-eeab-4c2d-8696-b80048d2a8ea"
+        }
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "03c445a2-3e24-40b4-bb3c-5ac3970ce718"
+        }
+      }
+    },
+    "GatewayToInternet": {
+      "DependsOn": [
+        "VPC",
+        "InternetGateway"
+      ],
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "InternetGateway"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "0c41b6c2-fcc6-4cab-9b68-a2bfcb717bd2"
+        }
+      }
+    },
+    "PublicRouteTable": {
+      "DependsOn": [
+        "VPC"
+      ],
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "Network",
+            "Value": "Public"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "6e31c8ab-f9b5-4cdd-ba54-03f2a95d2136"
+        }
+      }
+    },
+    "PublicRoute": {
+      "DependsOn": [
+        "PublicRouteTable",
+        "InternetGateway"
+      ],
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "InternetGateway"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "08c537ee-a48c-4978-a023-87b1b83580c9"
+        }
+      }
+    },
+    "PublicSubnetRouteTableAssociation": {
+      "DependsOn": [
+        "PublicSubnet",
+        "PublicRouteTable"
+      ],
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "57a77116-7718-4141-b356-aa069f6f3a45"
+        }
+      }
+    },
+    "PrivateSubnet": {
+      "DependsOn": [
+        "VPC"
+      ],
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "SubnetConfig",
+            "Private",
+            "CIDR"
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          },
+          {
+            "Key": "Name",
+            "Value": "Private Subnet"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "4671dd0f-fbef-467c-958e-098c858f679d"
+        }
+      }
+    },
+    "PrivateRouteTable": {
+      "DependsOn": [
+        "NAT"
+      ],
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Application",
+            "Value": {
+              "Ref": "AWS::StackName"
+            }
+          },
+          {
+            "Key": "Network",
+            "Value": "Private"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "b7146682-74ea-41ee-9a9d-384f1ad64362"
+        }
+      }
+    },
+    "PrivateSubnetRouteTableAssociation": {
+      "DependsOn": [
+        "PrivateSubnet",
+        "PrivateRouteTable"
+      ],
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "PrivateSubnet"
+        },
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "0ce67775-8d4c-4eb7-80bb-f4ad06d745a8"
+        }
+      }
+    },
+    "NatSecurityGroup": {
+      "DependsOn": [
+        "VPC"
+      ],
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "NAT Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3389",
+            "ToPort": "3389",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "443",
+            "ToPort": "443",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "NAT Security Group"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "4b88fc9d-df24-425b-b109-54b6705db04f"
+        }
+      }
+    },
+    "NAT": {
+      "DependsOn": [
+        "PublicSubnet"
+      ],
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT5M",
+          "Count": "1"
+        }
+      },
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "t2.micro",
+        "KeyName": {
+          "Ref": "NatKeyPairName"
+        },
+        "SourceDestCheck": "false",
+        "ImageId": {
+          "Fn::FindInMap": [
+            "NatRegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            "AMI"
+          ]
+        },
+        "NetworkInterfaces": [
+          {
+            "GroupSet": [
+              {
+                "Ref": "NatSecurityGroup"
+              }
+            ],
+            "AssociatePublicIpAddress": "true",
+            "DeviceIndex": "0",
+            "DeleteOnTermination": "true",
+            "SubnetId": {
+              "Ref": "PublicSubnet"
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "NAT"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash\n",
+                "cd /etc/ssh\n",
+                "perl -pi -e 's/PasswordAuthentication no/PasswordAuthentication yes/g' sshd_config\n",
+                "service sshd restart\n",
+                "echo admin123 | passwd ec2-user --stdin\n",
+                "setenforce 0\n",
+                "yum update -y && yum install -y yum-cron && chkconfig yum-cron on\n",
+                "/opt/aws/bin/cfn-signal -e 0 --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                " --resource NAT ",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n"
+              ]
+            ]
+          }
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "a4238b66-2f0f-417c-8d2b-067e1ee86de5"
+        }
+      }
+    },
+    "PrivateRoute": {
+      "DependsOn": [
+        "PrivateSubnetRouteTableAssociation"
+      ],
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "InstanceId": {
+          "Ref": "NAT"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "a550b19f-71bb-43e4-bb38-a997d80cdce2"
+        }
+      }
+    },
+    "PrivInstance": {
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT5M",
+          "Count": "1"
+        }
+      },
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {
+          "Fn::FindInMap": [
+            "PrivateRegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Ref": "PrivateInstanceOS"
+            }
+          ]
+        },
+        "InstanceType": {
+          "Ref": "PrivateInstanceType"
+        },
+        "NetworkInterfaces": [
+          {
+            "GroupSet": [
+              {
+                "Ref": "PrivateSecurityGroup"
+              }
+            ],
+            "AssociatePublicIpAddress": "false",
+            "DeviceIndex": "0",
+            "DeleteOnTermination": "true",
+            "SubnetId": {
+              "Ref": "PrivateSubnet"
+            }
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": {
+              "Fn::If": [
+                "PrivateOSAmazon",
+                "/dev/xvda",
+                "/dev/sda1"
+              ]
+            },
+            "Ebs": {
+              "VolumeType": "io1",
+              "Iops": "300",
+              "DeleteOnTermination": "false",
+              "VolumeSize": {
+                "Ref": "PrivEBSsize"
+              }
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Private Database Instance"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                {
+                  "Fn::If": [
+                    "PrivateOSAmazon",
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "#!/bin/bash -xe\n",
+                          "yum update -y aws-cfn-bootstrap\n",
+                          "# Install the files and packages from the metadata\n",
+                          "/opt/aws/bin/cfn-init -v ",
+                          "--stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PrivInstance ",
+                          "--configsets install_config_amazon ",
+                          "--region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n",
+                          "# Start up the cfn-hup daemon to listen for changes to the Web Server metadata\n",
+                          "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+                          "# Signal the status from cfn-init\n",
+                          "/opt/aws/bin/cfn-signal -e $? ",
+                          "--stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PrivInstance ",
+                          "--region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n"
+                        ]
+                      ]
+                    },
+                    ""
+                  ]
+                },
+                {
+                  "Fn::If": [
+                    "PrivateOSCentos",
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "#!/bin/bash -xe\n",
+                          "yum update -y\n",
+                          "rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                          "rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm\n",
+                          "yum -y install python-pip\n",
+                          "/bin/easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                          "cfn-init -v",
+                          " --stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PrivInstance",
+                          " --configsets install_config_centos",
+                          " --region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n"
+                        ]
+                      ]
+                    },
+                    ""
+                  ]
+                },
+                {
+                  "Fn::If": [
+                    "PrivateOSUbuntu",
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "#!/bin/bash -xe\n",
+                          "apt-get update -y\n",
+                          "apt-get -y install python-setuptools\n",
+                          "easy_install requests\n",
+                          "easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                          "ln -s /root/aws-cfn-bootstrap-latest/init/ubuntu/cfn-hup /etc/init.d/cfn-hup\n",
+                          "cfn-init -v",
+                          " --stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PrivInstance",
+                          " --configsets install_config_ubuntu",
+                          " --region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n"
+                        ]
+                      ]
+                    },
+                    ""
+                  ]
+                }
+              ]
+            ]
+          }
+        },
+        "KeyName": {
+          "Ref": "PrivateKeyPairName"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "cbc637da-4f51-48d1-a819-084a936f9ff7"
+        },
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "install_config_amazon": [
+              "install_cfn_amazon"
+            ],
+            "install_config_centos": [
+              "install_cfn_centos"
+            ],
+            "install_config_apt": [
+              "install_cfn_ubuntu"
+            ]
+          },
+          "install_cfn_amazon": {
+            "files": {
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.PrivInstance.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      "         --stack ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "         --resource PrivInstance ",
+                      "         --configsets install_config_amazon",
+                      "         --region ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          },
+          "install_cfn_centos": {
+            "files": {
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.PrivInstance.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      "         --stack ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "         --resource PrivInstance ",
+                      "         --configsets install_config_centos",
+                      "         --region ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          },
+          "install_cfn_ubuntu": {
+            "files": {
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.PrivInstance.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      "         --stack ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "         --resource PrivInstance ",
+                      "         --configsets install_config_apt",
+                      "         --region ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "DependsOn": [
+        "PrivateSubnet",
+        "PrivateRoute",
+        "GatewayToInternet"
+      ]
+    },
+    "PubInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {
+          "Fn::FindInMap": [
+            "PublicRegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            {
+              "Ref": "PublicInstanceOS"
+            }
+          ]
+        },
+        "InstanceType": {
+          "Ref": "PublicInstanceType"
+        },
+        "NetworkInterfaces": [
+          {
+            "GroupSet": [
+              {
+                "Ref": "PublicSecurityGroup"
+              }
+            ],
+            "AssociatePublicIpAddress": "true",
+            "DeviceIndex": "0",
+            "DeleteOnTermination": "true",
+            "SubnetId": {
+              "Ref": "PublicSubnet"
+            }
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": {
+              "Fn::If": [
+                "PublicOSAmazon",
+                "/dev/xvda",
+                "/dev/sda1"
+              ]
+            },
+            "Ebs": {
+              "VolumeType": "io1",
+              "Iops": "300",
+              "DeleteOnTermination": "false",
+              "VolumeSize": {
+                "Ref": "PubEBSsize"
+              }
+            }
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Public Database Instance"
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                {
+                  "Fn::If": [
+                    "PublicOSAmazon",
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "#!/bin/bash -xe\n",
+                          "yum update -y aws-cfn-bootstrap\n",
+                          "# Install the files and packages from the metadata\n",
+                          "/opt/aws/bin/cfn-init -v ",
+                          "--stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PubInstance ",
+                          "--configsets install_config_amazon ",
+                          "--region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n",
+                          "# Start up the cfn-hup daemon to listen for changes to the Web Server metadata\n",
+                          "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+                          "# Signal the status from cfn-init\n",
+                          "/opt/aws/bin/cfn-signal -e $? ",
+                          "--stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PubInstance ",
+                          "--region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n"
+                        ]
+                      ]
+                    },
+                    ""
+                  ]
+                },
+                {
+                  "Fn::If": [
+                    "PublicOSCentos",
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "#!/bin/bash -xe\n",
+                          "yum update -y\n",
+                          "rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm\n",
+                          "rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm\n",
+                          "yum -y install python-pip\n",
+                          "/bin/easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                          "cfn-init -v",
+                          " --stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PubInstance",
+                          " --configsets install_config_centos",
+                          " --region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n"
+                        ]
+                      ]
+                    },
+                    ""
+                  ]
+                },
+                {
+                  "Fn::If": [
+                    "PublicOSUbuntu",
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "#!/bin/bash -xe\n",
+                          "apt-get update -y\n",
+                          "apt-get -y install python-setuptools\n",
+                          "easy_install requests\n",
+                          "easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                          "ln -s /root/aws-cfn-bootstrap-latest/init/ubuntu/cfn-hup /etc/init.d/cfn-hup\n",
+                          "cfn-init -v",
+                          " --stack ",
+                          {
+                            "Ref": "AWS::StackName"
+                          },
+                          " --resource PubInstance",
+                          " --configsets install_config_apt",
+                          " --region ",
+                          {
+                            "Ref": "AWS::Region"
+                          },
+                          "\n"
+                        ]
+                      ]
+                    },
+                    ""
+                  ]
+                }
+              ]
+            ]
+          }
+        },
+        "KeyName": {
+          "Ref": "PublicKeyPairName"
+        }
+      },
+      "DependsOn": [
+        "PublicSecurityGroup",
+        "PublicSubnet"
+      ],
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT5M",
+          "Count": "1"
+        }
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "install_config_amazon": [
+              "install_cfn_amazon"
+            ],
+            "install_config_centos": [
+              "install_cfn_centos"
+            ],
+            "install_config_apt": [
+              "install_cfn_apt"
+            ]
+          },
+          "install_cfn_amazon": {
+            "files": {
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.PubInstance.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      "         --stack ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "         --resource PubInstance ",
+                      "         --configsets install_config_amazon",
+                      "         --region ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          },
+          "install_cfn_apt": {
+            "files": {
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.PubInstance.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      "         --stack ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "         --resource PubInstance ",
+                      "         --configsets install_config_apt",
+                      "         --region ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          },
+          "install_cfn_centos": {
+            "files": {
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.PubInstance.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      "         --stack ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "         --resource PubInstance ",
+                      "         --configsets install_config_centos",
+                      "         --region ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "cfn-hup": {
+                  "enabled": "true",
+                  "ensureRunning": "true",
+                  "files": [
+                    "/etc/cfn/cfn-hup.conf",
+                    "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "AWS::CloudFormation::Designer": {
+          "id": "d4d0b507-7b21-41b7-8401-8f87da9ca3ab"
+        }
+      }
+    },
+    "PublicSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Public Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Public Security Group"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8"
+        }
+      }
+    },
+    "PrivateSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Private Security Group",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3306",
+            "ToPort": "3306",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Private Security Group"
+          }
+        ]
+      },
+      "Metadata": {
+        "AWS::CloudFormation::Designer": {
+          "id": "2c02fd72-712a-413e-997c-f96a974d33e3"
+        }
+      },
+      "DependsOn": [
+        "VPC"
+      ]
+    }
+  },
+  "Outputs": {
+    "NATIP": {
+      "Description": "NAT IP address",
+      "Value": {
+        "Fn::GetAtt": [
+          "NAT",
+          "PublicIp"
+        ]
+      }
+    },
+    "WebserverIP": {
+      "Description": "Webserver IP address",
+      "Value": {
+        "Fn::GetAtt": [
+          "PubInstance",
+          "PublicIp"
+        ]
+      }
+    },
+    "DatabaseServerIP": {
+      "Description": "Database server IP address",
+      "Value": {
+        "Fn::GetAtt": [
+          "PrivInstance",
+          "PrivateIp"
+        ]
+      }
+    }
+  },
+  "Metadata": {
+    "AWS::CloudFormation::Designer": {
+      "03c445a2-3e24-40b4-bb3c-5ac3970ce718": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 780,
+          "y": 130
+        },
+        "z": 1,
+        "embeds": []
+      },
+      "aae70062-a1ba-41bc-8967-57d1c1d76158": {
+        "size": {
+          "width": 690,
+          "height": 690
+        },
+        "position": {
+          "x": 60,
+          "y": 90
+        },
+        "z": 1,
+        "embeds": [
+          "2c02fd72-712a-413e-997c-f96a974d33e3",
+          "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8",
+          "4b88fc9d-df24-425b-b109-54b6705db04f",
+          "4671dd0f-fbef-467c-958e-098c858f679d",
+          "6e31c8ab-f9b5-4cdd-ba54-03f2a95d2136",
+          "faaea7f4-eeab-4c2d-8696-b80048d2a8ea",
+          "b7146682-74ea-41ee-9a9d-384f1ad64362"
+        ]
+      },
+      "4b88fc9d-df24-425b-b109-54b6705db04f": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 670,
+          "y": 410
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": [],
+        "dependson": [
+          "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        ]
+      },
+      "b7146682-74ea-41ee-9a9d-384f1ad64362": {
+        "size": {
+          "width": 240,
+          "height": 240
+        },
+        "position": {
+          "x": 90,
+          "y": 450
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": [
+          "a550b19f-71bb-43e4-bb38-a997d80cdce2"
+        ],
+        "dependson": [
+          "aae70062-a1ba-41bc-8967-57d1c1d76158",
+          "a4238b66-2f0f-417c-8d2b-067e1ee86de5"
+        ]
+      },
+      "4671dd0f-fbef-467c-958e-098c858f679d": {
+        "size": {
+          "width": 240,
+          "height": 240
+        },
+        "position": {
+          "x": 390,
+          "y": 450
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": [
+          "cbc637da-4f51-48d1-a819-084a936f9ff7"
+        ],
+        "dependson": [
+          "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        ]
+      },
+      "0ce67775-8d4c-4eb7-80bb-f4ad06d745a8": {
+        "source": {
+          "id": "b7146682-74ea-41ee-9a9d-384f1ad64362"
+        },
+        "target": {
+          "id": "4671dd0f-fbef-467c-958e-098c858f679d"
+        },
+        "z": 2
+      },
+      "6e31c8ab-f9b5-4cdd-ba54-03f2a95d2136": {
+        "size": {
+          "width": 240,
+          "height": 240
+        },
+        "position": {
+          "x": 390,
+          "y": 150
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": [
+          "08c537ee-a48c-4978-a023-87b1b83580c9"
+        ],
+        "dependson": [
+          "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        ]
+      },
+      "08c537ee-a48c-4978-a023-87b1b83580c9": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 420,
+          "y": 180
+        },
+        "z": 3,
+        "parent": "6e31c8ab-f9b5-4cdd-ba54-03f2a95d2136",
+        "embeds": [],
+        "references": [
+          "03c445a2-3e24-40b4-bb3c-5ac3970ce718"
+        ],
+        "dependson": [
+          "6e31c8ab-f9b5-4cdd-ba54-03f2a95d2136",
+          "03c445a2-3e24-40b4-bb3c-5ac3970ce718"
+        ]
+      },
+      "0c41b6c2-fcc6-4cab-9b68-a2bfcb717bd2": {
+        "source": {
+          "id": "03c445a2-3e24-40b4-bb3c-5ac3970ce718"
+        },
+        "target": {
+          "id": "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        },
+        "z": 1
+      },
+      "faaea7f4-eeab-4c2d-8696-b80048d2a8ea": {
+        "size": {
+          "width": 240,
+          "height": 240
+        },
+        "position": {
+          "x": 90,
+          "y": 150
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": [
+          "d4d0b507-7b21-41b7-8401-8f87da9ca3ab",
+          "a4238b66-2f0f-417c-8d2b-067e1ee86de5"
+        ],
+        "dependson": [
+          "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        ]
+      },
+      "a4238b66-2f0f-417c-8d2b-067e1ee86de5": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 120,
+          "y": 180
+        },
+        "z": 3,
+        "parent": "faaea7f4-eeab-4c2d-8696-b80048d2a8ea",
+        "embeds": [],
+        "dependson": [
+          "faaea7f4-eeab-4c2d-8696-b80048d2a8ea",
+          "4b88fc9d-df24-425b-b109-54b6705db04f"
+        ],
+        "isrelatedto": [
+          "4b88fc9d-df24-425b-b109-54b6705db04f"
+        ]
+      },
+      "a550b19f-71bb-43e4-bb38-a997d80cdce2": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 180,
+          "y": 500
+        },
+        "z": 3,
+        "parent": "b7146682-74ea-41ee-9a9d-384f1ad64362",
+        "embeds": [],
+        "references": [
+          "a4238b66-2f0f-417c-8d2b-067e1ee86de5"
+        ],
+        "dependson": [
+          "b7146682-74ea-41ee-9a9d-384f1ad64362",
+          "a4238b66-2f0f-417c-8d2b-067e1ee86de5",
+          "0c41b6c2-fcc6-4cab-9b68-a2bfcb717bd2",
+          "03c445a2-3e24-40b4-bb3c-5ac3970ce718",
+          "0ce67775-8d4c-4eb7-80bb-f4ad06d745a8"
+        ]
+      },
+      "57a77116-7718-4141-b356-aa069f6f3a45": {
+        "source": {
+          "id": "6e31c8ab-f9b5-4cdd-ba54-03f2a95d2136"
+        },
+        "target": {
+          "id": "faaea7f4-eeab-4c2d-8696-b80048d2a8ea"
+        },
+        "z": 2
+      },
+      "2c02fd72-712a-413e-997c-f96a974d33e3": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 670,
+          "y": 250
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": [],
+        "dependson": [
+          "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        ]
+      },
+      "96e4bf6b-9e95-4c47-8a47-4a56fb81fdcd": {
+        "source": {
+          "id": "2c02fd72-712a-413e-997c-f96a974d33e3"
+        },
+        "target": {
+          "id": "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        },
+        "z": 12
+      },
+      "8ab83808-f6b7-45ad-a773-e6b9115f1cfc": {
+        "source": {
+          "id": "a3d8bbc6-66c9-414a-b672-7c120d5c34cf"
+        },
+        "target": {
+          "id": "4671dd0f-fbef-467c-958e-098c858f679d"
+        },
+        "z": 13
+      },
+      "193414d6-8b3b-4a77-a7b4-ce4377ab92d6": {
+        "source": {
+          "id": "a3d8bbc6-66c9-414a-b672-7c120d5c34cf"
+        },
+        "target": {
+          "id": "2c02fd72-712a-413e-997c-f96a974d33e3"
+        },
+        "z": 14
+      },
+      "cbc637da-4f51-48d1-a819-084a936f9ff7": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 480,
+          "y": 600
+        },
+        "z": 3,
+        "parent": "4671dd0f-fbef-467c-958e-098c858f679d",
+        "embeds": [],
+        "dependson": [
+          "4671dd0f-fbef-467c-958e-098c858f679d",
+          "a550b19f-71bb-43e4-bb38-a997d80cdce2",
+          "0c41b6c2-fcc6-4cab-9b68-a2bfcb717bd2",
+          "11bb9a2b-af17-4ec5-b6b0-6a8ed1b27199"
+        ],
+        "isrelatedto": [
+          "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8",
+          "2c02fd72-712a-413e-997c-f96a974d33e3"
+        ]
+      },
+      "e5b3b8f2-b395-4141-81ce-1502c70f2309": {
+        "source": {
+          "id": "cbc637da-4f51-48d1-a819-084a936f9ff7"
+        },
+        "target": {
+          "id": "4671dd0f-fbef-467c-958e-098c858f679d"
+        },
+        "z": 4
+      },
+      "6549b9c5-0d9c-4005-bcb7-555e60114989": {
+        "source": {
+          "id": "cbc637da-4f51-48d1-a819-084a936f9ff7"
+        },
+        "target": {
+          "id": "2c02fd72-712a-413e-997c-f96a974d33e3"
+        },
+        "z": 5
+      },
+      "d4d0b507-7b21-41b7-8401-8f87da9ca3ab": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 230,
+          "y": 180
+        },
+        "z": 3,
+        "parent": "faaea7f4-eeab-4c2d-8696-b80048d2a8ea",
+        "embeds": [],
+        "dependson": [
+          "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8",
+          "faaea7f4-eeab-4c2d-8696-b80048d2a8ea",
+          "86283262-d989-4e1a-b559-2b367e6d36e3"
+        ],
+        "isrelatedto": [
+          "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8"
+        ]
+      },
+      "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8": {
+        "size": {
+          "width": 60,
+          "height": 60
+        },
+        "position": {
+          "x": 670,
+          "y": 330
+        },
+        "z": 2,
+        "parent": "aae70062-a1ba-41bc-8967-57d1c1d76158",
+        "embeds": []
+      },
+      "6b7ea265-c27d-4ade-b374-be30cccfc7d4": {
+        "source": {
+          "id": "d4d0b507-7b21-41b7-8401-8f87da9ca3ab"
+        },
+        "target": {
+          "id": "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8"
+        },
+        "z": 4
+      },
+      "662f0964-31a8-4ef9-87f3-8a7968fb1cb5": {
+        "source": {
+          "id": "7c6e2024-e4a5-41c5-8687-ef48be2ef8c8"
+        },
+        "target": {
+          "id": "aae70062-a1ba-41bc-8967-57d1c1d76158"
+        },
+        "z": 5
+      },
+      "c8aa7067-5860-4ab8-97f5-44021020ff9b": {
+        "source": {
+          "id": "d4d0b507-7b21-41b7-8401-8f87da9ca3ab"
+        },
+        "target": {
+          "id": "faaea7f4-eeab-4c2d-8696-b80048d2a8ea"
+        },
+        "z": 6
+      },
+      "f9d40d02-6ebb-4a4f-a4e4-79ac172b6206": {
+        "source": {
+          "id": "cbc637da-4f51-48d1-a819-084a936f9ff7"
+        },
+        "target": {
+          "id": "a550b19f-71bb-43e4-bb38-a997d80cdce2"
+        },
+        "z": 4
+      },
+      "f74a02a1-0e01-4cd6-81ac-2aaa33b1756a": {
+        "source": {
+          "id": "d4d0b507-7b21-41b7-8401-8f87da9ca3ab"
+        },
+        "target": {
+          "id": "86283262-d989-4e1a-b559-2b367e6d36e3"
+        },
+        "z": 4
+      },
+      "ec6a12ad-3a40-4b2c-9140-0a80692a280a": {
+        "source": {
+          "id": "cbc637da-4f51-48d1-a819-084a936f9ff7"
+        },
+        "target": {
+          "id": "11bb9a2b-af17-4ec5-b6b0-6a8ed1b27199"
+        },
+        "z": 5
+      }
+    }
+  },
+  "Conditions": {
+    "PublicOSAmazon": {
+      "Fn::Equals": [
+        {
+          "Ref": "PublicInstanceOS"
+        },
+        "publicAmazon"
+      ]
+    },
+    "PublicOSCentos": {
+      "Fn::Equals": [
+        "publicCentos",
+        {
+          "Ref": "PublicInstanceOS"
+        }
+      ]
+    },
+    "PublicOSUbuntu": {
+      "Fn::Equals": [
+        "publicUbuntu",
+        {
+          "Ref": "PublicInstanceOS"
+        }
+      ]
+    },
+    "PrivateOSAmazon": {
+      "Fn::Equals": [
+        "privateAmazon",
+        {
+          "Ref": "PrivateInstanceOS"
+        }
+      ]
+    },
+    "PrivateOSCentos": {
+      "Fn::Equals": [
+        "privateCentos",
+        {
+          "Ref": "PrivateInstanceOS"
+        }
+      ]
+    },
+    "PrivateOSUbuntu": {
+      "Fn::Equals": [
+        "privateUbuntu",
+        {
+          "Ref": "PrivateInstanceOS"
+        }
+      ]
+    }
+  }
+}
