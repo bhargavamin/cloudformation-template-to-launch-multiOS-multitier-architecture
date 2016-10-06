@@ -1,5 +1,5 @@
 {
-  "AWSTemplateFormatVersion": "2010-09-09",
+  "AWSTemplateFormatVersion": "2016-10-06",
   "Description": "CloudFormation template for a generic VPC with public and private subnets (with private network Internet access via NAT)",
   "Parameters": {
     "NatKeyPairName": {
